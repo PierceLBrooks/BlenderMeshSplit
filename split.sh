@@ -1,4 +1,5 @@
 #!/bin/sh
 
-$BLENDER_HOME/Blender -b -P $PWD/split.py -- $1
+python3 -m pip install -r $PWD/requirements.txt
+python3 $PWD/split.py $1
 
