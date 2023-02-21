@@ -1,3 +1,5 @@
 *.gltf
 *.glb
-
+*.obj
+*.mtl
+*.blend
