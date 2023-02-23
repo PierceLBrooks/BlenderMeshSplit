@@ -231,14 +231,59 @@ def get_triangulation(vertices):
     return triangles
 
 
+def get_indices(indices):
+    result = {}
+    for index in indices:
+        result[index.index] = index
+    return result
+
+
 def gaps(args, obj):
-    print(obj.name)
     subject = obj.type
-    mesh = obj.data
-    bm = bmesh.new()
-    bm.from_mesh(mesh)
-    edges = list(bm.edges)
+
+    if not (bpy.context.mode == "OBJECT"):
+        return False
+    
+    bm = None
+    mesh = None
+    edges = []
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    for o in bpy.context.selected_objects:
+        print(o.name)
+        print(o.type)
+        if not (o.type == subject):
+            continue
+        mesh = o.data
+        if not (mesh == None):
+            bm = bmesh.from_edit_mesh(mesh)
+            bpy.ops.mesh.select_all(action="DESELECT")
+            bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type="EDGE")
+            bpy.ops.mesh.select_non_manifold(use_non_contiguous=False)
+            #bpy.ops.mesh.select_all(action="INVERT")
+            #bpy.ops.object.mode_set(mode="OBJECT")
+            for edge in bm.edges:
+                if (edge.select):
+                    edges.append(edge)
+            #bpy.ops.object.mode_set(mode="EDIT")
+    
+    if (bm == None):
+        return False
+    if (len(edges) < 2):
+        bm.free()
+        return False
+    """
+    bmesh.ops.delete(bm, geom=edges, context="EDGES")
+    bmesh.update_edit_mesh(mesh)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    return True
+    """
+    
+    
+    print(obj.name)
     edge = None
+    reverse = {}
     vertices = {}
     centers = []
     groups = []
@@ -269,6 +314,7 @@ def gaps(args, obj):
                 if not (group[j].index in vertices):
                     vertices[group[j].index] = []
                 for vertex in group[j].verts:
+                    reverse[vertex.index] = len(groups)
                     vertices[group[j].index].append([vertex.index, vertex.co])
             center = get_center(positions)
             origin = get_projection(center, center, positions[0])
@@ -276,12 +322,12 @@ def gaps(args, obj):
                 angle = get_angle(positions[j], center, positions[0], origin)
                 group[j] = [angle, group[j].index, positions[j]]
             group = list(get_sorting(group))
-            """
+            #"""
             for j in range(len(group)):
                 angle = group[j][0]
                 print(str(angle)+" @ "+str(j))
-            """
-            #print(str(len(groups))+" = "+str(len(group)))
+            #"""
+            print(str(len(groups))+" = "+str(len(group)))
             groups.append(group)
             centers.append(center)
         group = []
@@ -289,12 +335,12 @@ def gaps(args, obj):
     frontier = []
     edges = len(bm.edges)
     edge = None
-    bm.to_mesh(mesh)
-    bm.free()
+    print(str(len(groups)))
     
     if (len(groups) < 2):
+        bm.free()
         return False
-    print(str(len(groups)))
+    
     pairs = []
     paired = {}
     for i in range(len(groups)):
@@ -330,7 +376,7 @@ def gaps(args, obj):
             paired[pair[j]] = len(pairs)
         center = get_center([center, centers[pair[len(pair)-1]]])
         pairs.append([pair, distance, center])
-    #print(str(pairs))
+    print(str(pairs))
     
     mapping = {}
     for pair in pairs:
@@ -361,7 +407,7 @@ def gaps(args, obj):
                     if not (pair[i] in mapping):
                         mapping[pair[i]] = []
                     mapping[pair[i]].append(pair[0])
-    #print(str(len(list(mapping.keys())))+" | "+str(edges))
+    print(str(len(list(mapping.keys())))+" | "+str(edges))
     
     count = 0
     total = 0
@@ -411,18 +457,32 @@ def gaps(args, obj):
                         mapping[pair[k]].append(pair[0])
                 else:
                     fail += 1
-    """
+    temp = {}
     for key in mapping:
+        if (key in vertices):
+            for vertex in vertices[key]:
+                vertex = vertex[0]
+                for i in range(len(pairs)):
+                    pair = pairs[i]
+                    left = pair[0][0]
+                    right = pair[0][1]
+                    if ((left == reverse[vertex]) or (right == reverse[vertex])):
+                        if not (i in temp):
+                            temp[i] = []
+                        temp[i].append(vertex)
+                        break
         length = len(mapping[key])
         if not (length in stats):
             stats[length] = 0
         stats[length] += 1
-    """
-    #print(str(fix)+" | "+str(fail)+" | "+str(count)+" | "+str(total)+" | "+str(stats))
+    reverse = temp
+    print(str(fix)+" | "+str(fail)+" | "+str(count)+" | "+str(total)+" | "+str(stats))
     
     news = []
     faces = []
-    for pair in pairs:
+    for i in range(len(pairs)):
+        faces.append([])
+        pair = pairs[i]
         left = pair[0][0]
         right = pair[0][1]
         direction = get_normalized(get_subtraction(centers[left], centers[right]))
@@ -442,7 +502,7 @@ def gaps(args, obj):
                         face.append(news.index(support))
                 face.append(edge[1])
                 face.append(others[0])
-                faces.append(face)
+                faces[i].append(face)
                 continue
     """
     for i in range(len(faces)):
@@ -451,69 +511,69 @@ def gaps(args, obj):
     print(str(len(news)))
     """
     
-    #"""
-    if (bpy.context.mode == "OBJECT"):
-        bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.mode_set(mode="EDIT")
-        bpy.ops.mesh.select_all(action="SELECT")
-        for o in bpy.context.selected_objects:
-            print(o.name)
-            print(o.type)
-            if not (o.type == subject):
+    """
+    for new in news:
+        bm.edges.ensure_lookup_table()
+        bm.verts.ensure_lookup_table()
+        new = json.loads(new)
+        for i in range(len(new)):
+            new[i] = bm.verts[new[i]]
+        try:
+            bm.edges.new(tuple(new))
+        except:
+            logging.error(traceback.format_exc())
+            print(str(new))
+    """
+    edits = []
+    edges = get_indices(list(bm.edges))
+    vertices = get_indices(list(bm.verts))
+    for i in range(len(faces)):
+        face = faces[i]
+        #bm.edges.ensure_lookup_table()
+        #bm.verts.ensure_lookup_table()
+        #bm.faces.ensure_lookup_table()
+        for temp in face:
+            edit = []
+            for edge in temp:
+                if (edge < len(edges)):
+                    edge = edges[edge]
+                    for vertex in edge.verts:
+                        vertex = vertices[vertex.index]
+                        if (vertex in edit):
+                            continue
+                        if not (vertex.index in reverse[i]):
+                            continue
+                        edit.append(vertex)
+                else:
+                    new = json.loads(news[edge-len(edges)])
+                    for j in range(len(new)):
+                        vertex = vertices[new[j]]
+                        if (vertex in edit):
+                            continue
+                        if not (vertex.index in reverse[i]):
+                            continue
+                        edit.append(vertex)
+            if (len(edit) < 3):
                 continue
-            mesh = o.data
-            if not (mesh == None):
-                bm = bmesh.from_edit_mesh(mesh)
-                """
-                for new in news:
-                    bm.edges.ensure_lookup_table()
-                    bm.verts.ensure_lookup_table()
-                    new = json.loads(new)
-                    for i in range(len(new)):
-                        new[i] = bm.verts[new[i]]
-                    try:
-                        bm.edges.new(tuple(new))
-                    except:
-                        logging.error(traceback.format_exc())
-                        print(str(new))
-                """
-                for face in faces:
-                    bm.edges.ensure_lookup_table()
-                    bm.verts.ensure_lookup_table()
-                    bm.faces.ensure_lookup_table()
-                    vertices = []
-                    for edge in face:
-                        if (edge < edges):
-                            edge = bm.edges[edge]
-                            for vertex in edge.verts:
-                                #vertices.append(vertex.index)
-                                vertex = bm.verts[vertex.index]
-                                if (vertex in vertices):
-                                    continue
-                                vertices.append(vertex)
-                        else:
-                            new = json.loads(news[edge-edges])
-                            for i in range(len(new)):
-                                vertex = bm.verts[new[i]]
-                                if (vertex in vertices):
-                                    continue
-                                vertices.append(vertex)
-                    """
-                    triangles = get_triangulation(vertices)
-                    for triangle in triangles:
-                        bm.faces.new(tuple(triangle))
-                    """
-                    try:
-                        bm.faces.new(tuple(vertices))
-                    except:
-                        logging.error(traceback.format_exc())
-                        print(str(vertices))
-                bmesh.ops.triangulate(bm, faces=bm.faces[:])
-                bmesh.update_edit_mesh(mesh)
-                bm.free()
-                bpy.ops.object.mode_set(mode="OBJECT")
-                break
-    #"""
+            """
+            triangles = get_triangulation(edit)
+            for triangle in triangles:
+                bm.faces.new(tuple(triangle))
+            """
+            edits.append(tuple(edit))
+    for edit in edits:
+        bm.faces.ensure_lookup_table()
+        try:
+            bm.faces.new(edit)
+        except:
+            logging.error(traceback.format_exc())
+            print(str(edit))
+    bm.faces.ensure_lookup_table()
+    #bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    bmesh.update_edit_mesh(mesh)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    
+    bm.free()
     
     return True
 
