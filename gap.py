@@ -163,6 +163,21 @@ def get_distance(left, right):
     return distance**0.5
 
 
+def get_length(vertices):
+    length = 0.0
+    for i in range(len(vertices)):
+        if (i == 0):
+            continue
+        left = vertices[i-1]
+        right = vertices[i]
+        if not ("list" in str(type(left))):
+            left = left.co
+        if not ("list" in str(type(right))):
+            right = right.co
+        length += get_distance(left, right)
+    return length
+
+
 def get_angle(point, center, pivot, origin):
     position = get_projection(point, center, pivot)
     angle = get_direction(origin, position)
@@ -280,156 +295,112 @@ def gaps(args, obj):
     return True
     """
     
-    
-    print(obj.name)
-    edge = None
-    reverse = {}
-    vertices = {}
-    centers = []
-    groups = []
-    group = []
-    past = []
-    for i in range(len(edges)):
-        edge = edges[i]
-        frontier = []
-        if (edge in past):
-            continue
-        frontier.append(edge)
-        while (len(frontier) > 0):
-            edge = frontier[0]
-            frontier = frontier[1:]
-            if not (edge.index in past):
-                past.append(edge.index)
-            if not (edge.is_manifold):
-                group.append(edge)
-                for vertex in edge.verts:
-                    for other in vertex.link_edges:
-                        if not (other == edge):
-                            if not (other.index in past):
-                                frontier.append(other)
-        if (len(group) > 1):
-            positions = []
-            for j in range(len(group)):
-                positions.append(get_center(group[j].verts))
-                if not (group[j].index in vertices):
-                    vertices[group[j].index] = []
-                for vertex in group[j].verts:
-                    reverse[vertex.index] = len(groups)
-                    vertices[group[j].index].append([vertex.index, vertex.co])
-            center = get_center(positions)
-            origin = get_projection(center, center, positions[0])
-            for j in range(len(group)):
-                angle = get_angle(positions[j], center, positions[0], origin)
-                group[j] = [angle, group[j].index, positions[j]]
-            group = list(get_sorting(group))
-            #"""
-            for j in range(len(group)):
-                angle = group[j][0]
-                print(str(angle)+" @ "+str(j))
-            #"""
-            print(str(len(groups))+" = "+str(len(group)))
-            groups.append(group)
-            centers.append(center)
+    while (True):
+        print(obj.name)
+        edge = None
+        reverse = {}
+        vertices = {}
+        lengths = []
+        centers = []
+        groups = []
         group = []
-    past = []
-    frontier = []
-    edges = len(bm.edges)
-    edge = None
-    print(str(len(groups)))
-    
-    if (len(groups) < 2):
-        bm.free()
-        return False
-    
-    pairs = []
-    paired = {}
-    for i in range(len(groups)):
-        if (i in paired):
-            continue
-        group = groups[i]
-        center = centers[i]
-        pair = []
-        pair.append(i)
-        other = (i+1)%len(groups)
-        while (other in paired):
-            other += 1
-            if (other == len(groups)):
-                other -= other
-        distance = get_distance(center, centers[other])
-        for j in range(len(groups)):
-            if (i == j):
+        past = []
+        for i in range(len(edges)):
+            edge = edges[i]
+            frontier = []
+            if (edge in past):
                 continue
-            if (j == other):
+            frontier.append(edge)
+            while (len(frontier) > 0):
+                edge = frontier[0]
+                frontier = frontier[1:]
+                if not (edge.index in past):
+                    past.append(edge.index)
+                if not (edge.is_manifold):
+                    group.append(edge)
+                    for vertex in edge.verts:
+                        for other in vertex.link_edges:
+                            if not (other == edge):
+                                if not (other.index in past):
+                                    frontier.append(other)
+            if (len(group) > 1):
+                positions = []
+                for j in range(len(group)):
+                    positions.append(get_center(group[j].verts))
+                    if not (group[j].index in vertices):
+                        vertices[group[j].index] = []
+                    for vertex in group[j].verts:
+                        reverse[vertex.index] = len(groups)
+                        vertices[group[j].index].append([vertex.index, vertex.co])
+                center = get_center(positions)
+                origin = get_projection(center, center, positions[0])
+                for j in range(len(group)):
+                    angle = get_angle(positions[j], center, positions[0], origin)
+                    group[j] = [angle, group[j].index, positions[j], get_length(group[j].verts)]
+                #group = list(get_sorting(group))
+                for j in range(len(group)):
+                    angle = group[j][0]
+                    group[j][0] = group[j][len(group[j])-1]
+                    group[j][len(group[j])-1] = angle
+                    #print(str(angle)+" @ "+str(j)+" = "+str(group[j][0]))
+                print(str(len(groups))+" = "+str(len(group)))
+                groups.append(group)
+                centers.append(center)
+                lengths.append(list(reversed(list(get_sorting(group)))))
+                #print(str(lengths[len(lengths)-1]))
+            group = []
+        past = []
+        frontier = []
+        edges = len(bm.edges)
+        edge = None
+        print(str(len(groups)))
+        
+        if (len(groups) < 2):
+            bm.free()
+            return False
+        
+        pairs = []
+        paired = {}
+        for i in range(len(groups)):
+            if (i in paired):
                 continue
-            if (j in paired):
-                continue
-            temp = get_distance(center, centers[j])
-            if (temp > distance):
-                continue
-            distance = temp
-            other = j
-        if not (other in paired):
-            pair.append(other)
-        if (len(pair) < 2):
-            continue
-        for j in range(len(pair)):
-            paired[pair[j]] = len(pairs)
-        center = get_center([center, centers[pair[len(pair)-1]]])
-        pairs.append([pair, distance, center])
-    print(str(pairs))
-    
-    mapping = {}
-    for pair in pairs:
-        left = pair[0][0]
-        right = pair[0][1]
-        for edge in groups[left]:
+            group = groups[i]
+            center = centers[i]
             pair = []
-            pair.append(edge[1])
-            distance = None
-            for other in groups[right]:
-                temp = get_distance(edge[2], other[2])
-                if (distance == None):
-                    distance = temp
-                    pair.append(other[1])
+            pair.append(i)
+            other = (i+1)%len(groups)
+            while (other in paired):
+                other += 1
+                if (other == len(groups)):
+                    other -= other
+            distance = get_distance(center, centers[other])
+            for j in range(len(groups)):
+                if (i == j):
                     continue
+                if (j == other):
+                    continue
+                if (j in paired):
+                    continue
+                temp = get_distance(center, centers[j])
                 if (temp > distance):
                     continue
                 distance = temp
-                pair[len(pair)-1] = other[1]
-            if (len(pair) > 1):
-                if not (pair[0] in mapping):
-                    mapping[pair[0]] = []
-                for i in range(len(pair)):
-                    if (i == 0):
-                        continue
-                    #print(str(pair[0])+" @ "+str(left)+" -> "+str(pair[i])+" @ "+str(right)+" = "+str(distance))
-                    mapping[pair[0]].append(pair[i])
-                    if not (pair[i] in mapping):
-                        mapping[pair[i]] = []
-                    mapping[pair[i]].append(pair[0])
-    print(str(len(list(mapping.keys())))+" | "+str(edges))
-    
-    count = 0
-    total = 0
-    fail = 0
-    fix = 0
-    stats = {}
-    for i in range(len(groups)):
-        group = groups[i]
-        total += len(group)
-        for j in range(len(group)):
-            edge = group[j]
-            if not (edge[1] in mapping):
-                count += 1
-                if not (i in paired):
-                    continue
-                pair = pairs[paired[i]]
-                left = pair[0][0]
-                right = pair[0][1]
-                if not (left == i):
-                    temp = left
-                    left = right
-                    right = temp
+                other = j
+            if not (other in paired):
+                pair.append(other)
+            if (len(pair) < 2):
+                continue
+            for j in range(len(pair)):
+                paired[pair[j]] = len(pairs)
+            center = get_center([center, centers[pair[len(pair)-1]]])
+            pairs.append([pair, distance, center])
+        print(str(pairs))
+        
+        mapping = {}
+        for pair in pairs:
+            left = pair[0][0]
+            right = pair[0][1]
+            for edge in groups[left]:
                 pair = []
                 pair.append(edge[1])
                 distance = None
@@ -444,136 +415,229 @@ def gaps(args, obj):
                     distance = temp
                     pair[len(pair)-1] = other[1]
                 if (len(pair) > 1):
-                    fix += 1
                     if not (pair[0] in mapping):
                         mapping[pair[0]] = []
-                    for k in range(len(pair)):
-                        if (k == 0):
+                    for i in range(len(pair)):
+                        if (i == 0):
                             continue
-                        #print(str(pair[0])+" @ "+str(left)+" -> "+str(pair[k])+" @ "+str(right)+" = "+str(distance))
-                        mapping[pair[0]].append(pair[k])
-                        if not (pair[k] in mapping):
-                            mapping[pair[k]] = []
-                        mapping[pair[k]].append(pair[0])
-                else:
-                    fail += 1
-    temp = {}
-    for key in mapping:
-        if (key in vertices):
-            for vertex in vertices[key]:
-                vertex = vertex[0]
-                for i in range(len(pairs)):
-                    pair = pairs[i]
+                        #print(str(pair[0])+" @ "+str(left)+" -> "+str(pair[i])+" @ "+str(right)+" = "+str(distance))
+                        mapping[pair[0]].append(pair[i])
+                        if not (pair[i] in mapping):
+                            mapping[pair[i]] = []
+                        mapping[pair[i]].append(pair[0])
+        print(str(len(list(mapping.keys())))+" | "+str(edges))
+        
+        count = 0
+        total = 0
+        fail = 0
+        fix = 0
+        stats = {}
+        for i in range(len(groups)):
+            group = groups[i]
+            total += len(group)
+            for j in range(len(group)):
+                edge = group[j]
+                if not (edge[1] in mapping):
+                    count += 1
+                    if not (i in paired):
+                        continue
+                    pair = pairs[paired[i]]
                     left = pair[0][0]
                     right = pair[0][1]
-                    if ((left == reverse[vertex]) or (right == reverse[vertex])):
-                        if not (i in temp):
-                            temp[i] = []
-                        temp[i].append(vertex)
-                        break
-        length = len(mapping[key])
-        if not (length in stats):
-            stats[length] = 0
-        stats[length] += 1
-    reverse = temp
-    print(str(fix)+" | "+str(fail)+" | "+str(count)+" | "+str(total)+" | "+str(stats))
-    
-    news = []
-    faces = []
-    for i in range(len(pairs)):
-        faces.append([])
-        pair = pairs[i]
-        left = pair[0][0]
-        right = pair[0][1]
-        direction = get_normalized(get_subtraction(centers[left], centers[right]))
-        for edge in groups[left]:
-            if not (edge[1] in mapping):
-                continue
-            others = mapping[edge[1]]
-            if (len(others) == 1):
-                supports = get_supports(vertices, edge[1], others[0], direction)
-                face = []
-                for support in supports:
-                    support = json.dumps(support)
-                    if not (support in news):
-                        face.append(edges+len(news))
-                        news.append(support)
+                    if not (left == i):
+                        temp = left
+                        left = right
+                        right = temp
+                    pair = []
+                    pair.append(edge[1])
+                    distance = None
+                    for other in groups[right]:
+                        temp = get_distance(edge[2], other[2])
+                        if (distance == None):
+                            distance = temp
+                            pair.append(other[1])
+                            continue
+                        if (temp > distance):
+                            continue
+                        distance = temp
+                        pair[len(pair)-1] = other[1]
+                    if (len(pair) > 1):
+                        fix += 1
+                        if not (pair[0] in mapping):
+                            mapping[pair[0]] = []
+                        for k in range(len(pair)):
+                            if (k == 0):
+                                continue
+                            #print(str(pair[0])+" @ "+str(left)+" -> "+str(pair[k])+" @ "+str(right)+" = "+str(distance))
+                            mapping[pair[0]].append(pair[k])
+                            if not (pair[k] in mapping):
+                                mapping[pair[k]] = []
+                            mapping[pair[k]].append(pair[0])
                     else:
-                        face.append(news.index(support))
-                face.append(edge[1])
-                face.append(others[0])
-                faces[i].append(face)
+                        fail += 1
+        temp = {}
+        for key in mapping:
+            if (key in vertices):
+                for vertex in vertices[key]:
+                    vertex = vertex[0]
+                    for i in range(len(pairs)):
+                        pair = pairs[i]
+                        left = pair[0][0]
+                        right = pair[0][1]
+                        if ((left == reverse[vertex]) or (right == reverse[vertex])):
+                            if not (i in temp):
+                                temp[i] = []
+                            temp[i].append(vertex)
+                            break
+            length = len(mapping[key])
+            if not (length in stats):
+                stats[length] = 0
+            stats[length] += 1
+        reverse = temp
+        print(str(fix)+" | "+str(fail)+" | "+str(count)+" | "+str(total)+" | "+str(stats))
+        
+        news = []
+        faces = []
+        for i in range(len(pairs)):
+            faces.append([])
+            pair = pairs[i]
+            left = pair[0][0]
+            right = pair[0][1]
+            direction = get_normalized(get_subtraction(centers[left], centers[right]))
+            for edge in groups[left]:
+                if not (edge[1] in mapping):
+                    continue
+                others = mapping[edge[1]]
+                if (len(others) == 1):
+                    supports = get_supports(vertices, edge[1], others[0], direction)
+                    face = []
+                    for support in supports:
+                        support = json.dumps(support)
+                        if not (support in news):
+                            face.append(edges+len(news))
+                            news.append(support)
+                        else:
+                            face.append(news.index(support))
+                    face.append(edge[1])
+                    face.append(others[0])
+                    faces[i].append(face)
+                    continue
+        """
+        for i in range(len(faces)):
+            face = faces[i]
+            print(str(face)+" @ "+str(i))
+        print(str(len(news)))
+        """
+        
+        edits = []
+        edges = get_indices(list(bm.edges))
+        vertices = get_indices(list(bm.verts))
+        """
+        for new in news:
+            bm.edges.ensure_lookup_table()
+            bm.verts.ensure_lookup_table()
+            new = json.loads(new)
+            for i in range(len(new)):
+                new[i] = vertices[new[i]]
+            try:
+                bm.edges.new(tuple(new))
+            except:
+                logging.error(traceback.format_exc())
+                print(str(new))
+        """
+        big = []
+        for i in range(len(pairs)):
+            pair = pairs[i]
+            left = pair[0][0]
+            right = pair[0][1]
+            small = None
+            cuts = {}
+            if (len(lengths[left]) == len(lengths[right])):
                 continue
-    """
-    for i in range(len(faces)):
-        face = faces[i]
-        print(str(face)+" @ "+str(i))
-    print(str(len(news)))
-    """
-    
-    """
-    for new in news:
-        bm.edges.ensure_lookup_table()
-        bm.verts.ensure_lookup_table()
-        new = json.loads(new)
-        for i in range(len(new)):
-            new[i] = bm.verts[new[i]]
-        try:
-            bm.edges.new(tuple(new))
-        except:
-            logging.error(traceback.format_exc())
-            print(str(new))
-    """
-    edits = []
-    edges = get_indices(list(bm.edges))
-    vertices = get_indices(list(bm.verts))
-    for i in range(len(faces)):
-        face = faces[i]
-        #bm.edges.ensure_lookup_table()
-        #bm.verts.ensure_lookup_table()
-        #bm.faces.ensure_lookup_table()
-        for temp in face:
-            edit = []
-            for edge in temp:
-                if (edge < len(edges)):
-                    edge = edges[edge]
-                    for vertex in edge.verts:
-                        vertex = vertices[vertex.index]
-                        if (vertex in edit):
-                            continue
-                        if not (vertex.index in reverse[i]):
-                            continue
-                        edit.append(vertex)
-                else:
-                    new = json.loads(news[edge-len(edges)])
-                    for j in range(len(new)):
-                        vertex = vertices[new[j]]
-                        if (vertex in edit):
-                            continue
-                        if not (vertex.index in reverse[i]):
-                            continue
-                        edit.append(vertex)
-            if (len(edit) < 3):
-                continue
-            """
-            triangles = get_triangulation(edit)
-            for triangle in triangles:
-                bm.faces.new(tuple(triangle))
-            """
-            edits.append(tuple(edit))
-    for edit in edits:
+            if (len(lengths[left]) < len(lengths[right])):
+                small = left
+                big.append(right)
+            else:
+                small = right
+                big.append(left)
+            for i in range(abs(len(lengths[small])-len(lengths[big[len(big)-1]]))):
+                long = i%len(lengths[small])
+                if not (long in cuts):
+                    cuts[long] = 0
+                cuts[long] += 1
+            for cut in cuts:
+                length = len(edges)
+                #print(str(cut)+" | "+str(lengths[small][cut][0]))
+                #bpy.ops.mesh.select_all(action="DESELECT")
+                edge = edges[lengths[small][cut][1]]
+                cut = cuts[cut]
+                bmesh.ops.subdivide_edges(bm, edges=[edge], cuts=cut)
+                edges = get_indices(list(bm.edges))
+                vertices = get_indices(list(bm.verts))
+                for i in range(abs(length-len(edges))):
+                    for face in edges[length+i].link_faces:
+                        bmesh.ops.triangulate(bm, faces=[face])
+                edges = get_indices(list(bm.edges))
+                vertices = get_indices(list(bm.verts))
+                #print(str(cut)+" | "+str(length)+" | "+str(len(edges)))
+            edges = get_indices(list(bm.edges))
+            vertices = get_indices(list(bm.verts))
+        if (len(big) > 0):
+            print(str(big))
+            continue
+        edges = get_indices(list(bm.edges))
+        vertices = get_indices(list(bm.verts))
+        for i in range(len(faces)):
+            face = faces[i]
+            #bm.edges.ensure_lookup_table()
+            #bm.verts.ensure_lookup_table()
+            #bm.faces.ensure_lookup_table()
+            for temp in face:
+                edit = []
+                for edge in temp:
+                    if (edge < len(edges)):
+                        edge = edges[edge]
+                        for vertex in edge.verts:
+                            vertex = vertices[vertex.index]
+                            if (vertex in edit):
+                                continue
+                            if not (vertex.index in reverse[i]):
+                                continue
+                            edit.append(vertex)
+                    else:
+                        new = json.loads(news[edge-len(edges)])
+                        for j in range(len(new)):
+                            vertex = vertices[new[j]]
+                            if (vertex in edit):
+                                continue
+                            if not (vertex.index in reverse[i]):
+                                continue
+                            edit.append(vertex)
+                if (len(edit) < 3):
+                    continue
+                """
+                triangles = get_triangulation(edit)
+                for triangle in triangles:
+                    bm.faces.new(tuple(triangle))
+                """
+                edits.append(tuple(edit))
+        """
+        for edit in edits:
+            bm.faces.ensure_lookup_table()
+            try:
+                bm.faces.new(edit)
+            except:
+                logging.error(traceback.format_exc())
+                print(str(edit))
+        """
         bm.faces.ensure_lookup_table()
-        try:
-            bm.faces.new(edit)
-        except:
-            logging.error(traceback.format_exc())
-            print(str(edit))
-    bm.faces.ensure_lookup_table()
-    #bmesh.ops.triangulate(bm, faces=bm.faces[:])
-    bmesh.update_edit_mesh(mesh)
-    bpy.ops.object.mode_set(mode="OBJECT")
-    
-    bm.free()
+        #bmesh.ops.triangulate(bm, faces=bm.faces[:])
+        bmesh.update_edit_mesh(mesh)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        
+        bm.free()
+        
+        break
     
     return True
 
