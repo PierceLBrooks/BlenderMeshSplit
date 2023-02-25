@@ -302,6 +302,7 @@ def gaps(args, obj):
         vertices = {}
         lengths = []
         centers = []
+        totals = []
         groups = []
         group = []
         past = []
@@ -324,12 +325,15 @@ def gaps(args, obj):
                                 if not (other.index in past):
                                     frontier.append(other)
             if (len(group) > 1):
+                totals.append([])
                 positions = []
                 for j in range(len(group)):
                     positions.append(get_center(group[j].verts))
                     if not (group[j].index in vertices):
                         vertices[group[j].index] = []
                     for vertex in group[j].verts:
+                        if not (vertex.index in totals[len(groups)]):
+                            totals[len(groups)].append(vertex.index)
                         reverse[vertex.index] = len(groups)
                         vertices[group[j].index].append([vertex.index, vertex.co])
                 center = get_center(positions)
@@ -397,6 +401,7 @@ def gaps(args, obj):
         print(str(pairs))
         
         mapping = {}
+        distances = {}
         for pair in pairs:
             left = pair[0][0]
             right = pair[0][1]
@@ -417,14 +422,20 @@ def gaps(args, obj):
                 if (len(pair) > 1):
                     if not (pair[0] in mapping):
                         mapping[pair[0]] = []
+                    if not (pair[0] in distances):
+                        distances[pair[0]] = {}
                     for i in range(len(pair)):
                         if (i == 0):
                             continue
                         #print(str(pair[0])+" @ "+str(left)+" -> "+str(pair[i])+" @ "+str(right)+" = "+str(distance))
                         mapping[pair[0]].append(pair[i])
+                        distances[pair[0]][pair[i]] = distance
                         if not (pair[i] in mapping):
                             mapping[pair[i]] = []
+                        if not (pair[i] in distances):
+                            distances[pair[i]] = {}
                         mapping[pair[i]].append(pair[0])
+                        distances[pair[i]][pair[0]] = distance
         print(str(len(list(mapping.keys())))+" | "+str(edges))
         
         count = 0
@@ -465,14 +476,20 @@ def gaps(args, obj):
                         fix += 1
                         if not (pair[0] in mapping):
                             mapping[pair[0]] = []
+                        if not (pair[0] in distances):
+                            distances[pair[0]] = {}
                         for k in range(len(pair)):
                             if (k == 0):
                                 continue
                             #print(str(pair[0])+" @ "+str(left)+" -> "+str(pair[k])+" @ "+str(right)+" = "+str(distance))
                             mapping[pair[0]].append(pair[k])
+                            distances[pair[0]][pair[k]] = distance
                             if not (pair[k] in mapping):
                                 mapping[pair[k]] = []
+                            if not (pair[k] in distances):
+                                distances[pair[k]] = {}
                             mapping[pair[k]].append(pair[0])
+                            distances[pair[k]][pair[0]] = distance
                     else:
                         fail += 1
         temp = {}
@@ -587,41 +604,120 @@ def gaps(args, obj):
             continue
         edges = get_indices(list(bm.edges))
         vertices = get_indices(list(bm.verts))
-        for i in range(len(faces)):
-            face = faces[i]
-            #bm.edges.ensure_lookup_table()
-            #bm.verts.ensure_lookup_table()
-            #bm.faces.ensure_lookup_table()
-            for temp in face:
-                edit = []
-                for edge in temp:
-                    if (edge < len(edges)):
-                        edge = edges[edge]
-                        for vertex in edge.verts:
-                            vertex = vertices[vertex.index]
-                            if (vertex in edit):
-                                continue
-                            if not (vertex.index in reverse[i]):
-                                continue
-                            edit.append(vertex)
+        for i in range(len(pairs)):
+            pair = pairs[i]
+            left = pair[0][0]
+            right = pair[0][1]
+            short = []
+            for j in range(len(groups[left])):
+                edge = groups[left][j]
+                for other in mapping[edge[1]]:
+                    for k in range(len(groups[right])):
+                        if (groups[right][k][1] == other):
+                            short.append([distances[edge[1]][groups[right][k][1]], j, k])
+                            break
+            short = list(sorted(short))
+            edge = short[0][1]
+            other = short[0][2]
+            if not (edge == 0):
+                if (edge == len(groups[left])-1):
+                    groups[left] = [groups[left][edge]]+groups[left][:edge]
+                else:
+                    groups[left] = groups[left][edge:]+groups[left][:edge]
+            if not (other == 0):
+                if (other == len(groups[right])-1):
+                    groups[right] = [groups[right][other]]+groups[right][:other]
+                else:
+                    groups[right] = groups[right][other:]+groups[right][:other]
+        for i in range(len(groups)):
+            group = [0]
+            indices = list(range(len(groups[i])))[1:]
+            while (len(group) < len(groups[i])):
+                length = len(group)
+                edge = edges[groups[i][group[length-1]][1]]
+                for j in range(len(indices)):
+                    other = edges[groups[i][indices[j]][1]]
+                    for vertex in other.verts:
+                        for k in range(len(vertex.link_edges)):
+                            if (vertex.link_edges[k].index == edge.index):
+                                group.append(indices[j])
+                                if (j == 0):
+                                    indices = indices[1:]
+                                else:
+                                    if (j == len(indices)-1):
+                                        indices = indices[:(len(indices)-1)]
+                                    else:
+                                        indices = indices[:j]+indices[(j+1):]
+                                break
+                        if not (length == len(group)):
+                            break
+                    if not (length == len(group)):
+                        break
+                if (length == len(group)):
+                    if (len(indices) == 1):
+                        group.append(indices[0])
                     else:
-                        new = json.loads(news[edge-len(edges)])
-                        for j in range(len(new)):
-                            vertex = vertices[new[j]]
-                            if (vertex in edit):
-                                continue
-                            if not (vertex.index in reverse[i]):
-                                continue
-                            edit.append(vertex)
-                if (len(edit) < 3):
-                    continue
-                """
-                triangles = get_triangulation(edit)
-                for triangle in triangles:
-                    bm.faces.new(tuple(triangle))
-                """
-                edits.append(tuple(edit))
+                        print(str(indices))
+                        print(str(len(indices))+" | "+str(len(groups[i])))
+                        group = None
+                    break
+            print(str(group))
+            if (group == None):
+                continue
+            for j in range(len(group)):
+                group[j] = groups[i][group[j]]
+            groups[i] = group
         """
+        for i in range(len(groups)):
+            group = list(edges[groups[i][0][1]].verts)
+            indices = list(range(len(groups[i])))[1:]
+            while (len(group) < len(totals[i])):
+                length = len(group)
+                for j in range(len(indices)):
+                    edge = edges[groups[i][indices[j]][1]]
+                    for vertex in edge.verts:
+                        for k in range(len(vertex.link_edges)):
+                            pass
+                if (length == len(group)):
+                    if (len(indices) == 1):
+                        group.append(indices[0])
+                    else:
+                        print(str(indices))
+                        print(str(len(indices))+" | "+str(len(totals[i])))
+                        group = None
+                    break
+            print(str(group))
+            if (group == None):
+                continue
+            groups[i] = group
+        """
+        for i in range(len(pairs)):
+            pair = pairs[i]
+            for j in range(len(groups[pair[0][0]])):
+                left = pair[0][0]
+                right = pair[0][1]
+                for k in range(2):
+                    edit = []
+                    if not (k == 0):
+                        temp = left
+                        left = right
+                        right = temp
+                    edge = edges[groups[left][j][1]]
+                    other = edges[groups[right][j][1]]
+                    edit.append(vertices[edge.verts[abs(k-(j%2))].index])
+                    for vertex in other.verts:
+                        if (vertex in edit):
+                            continue
+                        edit.append(vertices[vertex.index])
+                    if (len(edit) < 3):
+                        continue
+                    if (len(edit) > 3):
+                        triangulation = get_triangulation(edit)
+                        for l in range(len(triangulation)):
+                            edits.append(triangulation[l])
+                    else:
+                        edits.append(edit)
+        #"""
         for edit in edits:
             bm.faces.ensure_lookup_table()
             try:
@@ -629,7 +725,7 @@ def gaps(args, obj):
             except:
                 logging.error(traceback.format_exc())
                 print(str(edit))
-        """
+        #"""
         bm.faces.ensure_lookup_table()
         #bmesh.ops.triangulate(bm, faces=bm.faces[:])
         bmesh.update_edit_mesh(mesh)
