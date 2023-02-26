@@ -661,13 +661,12 @@ def gaps(args, obj):
                         print(str(len(indices))+" | "+str(len(groups[i])))
                         group = None
                     break
-            print(str(group))
             if (group == None):
                 continue
+            print(str(len(group)))
             for j in range(len(group)):
                 group[j] = groups[i][group[j]]
             groups[i] = group
-        """
         for i in range(len(groups)):
             group = list(edges[groups[i][0][1]].verts)
             indices = list(range(len(groups[i])))[1:]
@@ -677,7 +676,23 @@ def gaps(args, obj):
                     edge = edges[groups[i][indices[j]][1]]
                     for vertex in edge.verts:
                         for k in range(len(vertex.link_edges)):
-                            pass
+                            for other in vertex.link_edges[k].verts:
+                                if ((other == group[len(group)-1]) and not (other == vertex)):
+                                    group.append(vertex)
+                                    if (j == 0):
+                                        indices = indices[1:]
+                                    else:
+                                        if (j == len(indices)-1):
+                                            indices = indices[:(len(indices)-1)]
+                                        else:
+                                            indices = indices[:j]+indices[(j+1):]
+                                    break
+                            if not (length == len(group)):
+                                break
+                        if not (length == len(group)):
+                            break
+                    if not (length == len(group)):
+                        break
                 if (length == len(group)):
                     if (len(indices) == 1):
                         group.append(indices[0])
@@ -686,11 +701,12 @@ def gaps(args, obj):
                         print(str(len(indices))+" | "+str(len(totals[i])))
                         group = None
                     break
-            print(str(group))
             if (group == None):
                 continue
+            print(str(len(group)))
+            for j in range(len(group)):
+                group[j] = group[j].index
             groups[i] = group
-        """
         for i in range(len(pairs)):
             pair = pairs[i]
             for j in range(len(groups[pair[0][0]])):
@@ -702,13 +718,11 @@ def gaps(args, obj):
                         temp = left
                         left = right
                         right = temp
-                    edge = edges[groups[left][j][1]]
-                    other = edges[groups[right][j][1]]
-                    edit.append(vertices[edge.verts[abs(k-(j%2))].index])
-                    for vertex in other.verts:
-                        if (vertex in edit):
-                            continue
-                        edit.append(vertices[vertex.index])
+                    vertex = vertices[groups[left][j]]
+                    other = vertices[groups[right][(j+k)%len(groups[right])]]
+                    edit.append(vertex)
+                    edit.append(other)
+                    edit.append(vertices[groups[left][(j+1)%len(groups[left])]])
                     if (len(edit) < 3):
                         continue
                     if (len(edit) > 3):
@@ -717,15 +731,13 @@ def gaps(args, obj):
                             edits.append(triangulation[l])
                     else:
                         edits.append(edit)
-        #"""
         for edit in edits:
             bm.faces.ensure_lookup_table()
             try:
-                bm.faces.new(edit)
+                bm.faces.new(tuple(edit))
             except:
                 logging.error(traceback.format_exc())
                 print(str(edit))
-        #"""
         bm.faces.ensure_lookup_table()
         #bmesh.ops.triangulate(bm, faces=bm.faces[:])
         bmesh.update_edit_mesh(mesh)
