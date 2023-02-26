@@ -184,53 +184,6 @@ def get_angle(point, center, pivot, origin):
     return get_bounded(angle)
 
 
-def get_supports(vertices, left, right, direction):
-    pairs = []
-    paired = {}
-    positions = []
-    positions += vertices[left]
-    positions += vertices[right]
-    for i in range(len(vertices[left])):
-        if (i in paired):
-            continue
-        position = positions[i]
-        pair = []
-        pair.append(i)
-        other = (i+len(vertices[left]))%len(positions)
-        while ((other in paired) or (other < len(vertices[left]))):
-            other += 1
-            if (other == len(positions)):
-                other -= other
-        distance = get_dot(direction, get_normalized(get_subtraction(positions[i][1], positions[other][1])))
-        for j in range(len(positions)):
-            if (i == j):
-                continue
-            if (j == other):
-                continue
-            if (j < len(vertices[left])):
-                continue
-            if (j in paired):
-                continue
-            temp = get_dot(direction, get_normalized(get_subtraction(positions[i][1], positions[j][1])))
-            if (temp < distance):
-                continue
-            distance = temp
-            other = j
-        if not (other in paired):
-            pair.append(other)
-        if (len(pair) < 2):
-            continue
-        for j in range(len(pair)):
-            paired[pair[j]] = len(pairs)
-            if (pair[j] < len(vertices[left])):
-                pair[j] = vertices[left][pair[j]][0]
-            else:
-                pair[j] = vertices[right][pair[j]-len(vertices[left])][0]
-        pairs.append(pair)
-    #print(str(pairs))
-    return pairs
-
-
 def get_triangulation(vertices):
     triangles = []
     triangle = []
@@ -513,55 +466,9 @@ def gaps(args, obj):
         reverse = temp
         print(str(fix)+" | "+str(fail)+" | "+str(count)+" | "+str(total)+" | "+str(stats))
         
-        news = []
-        faces = []
-        for i in range(len(pairs)):
-            faces.append([])
-            pair = pairs[i]
-            left = pair[0][0]
-            right = pair[0][1]
-            direction = get_normalized(get_subtraction(centers[left], centers[right]))
-            for edge in groups[left]:
-                if not (edge[1] in mapping):
-                    continue
-                others = mapping[edge[1]]
-                if (len(others) == 1):
-                    supports = get_supports(vertices, edge[1], others[0], direction)
-                    face = []
-                    for support in supports:
-                        support = json.dumps(support)
-                        if not (support in news):
-                            face.append(edges+len(news))
-                            news.append(support)
-                        else:
-                            face.append(news.index(support))
-                    face.append(edge[1])
-                    face.append(others[0])
-                    faces[i].append(face)
-                    continue
-        """
-        for i in range(len(faces)):
-            face = faces[i]
-            print(str(face)+" @ "+str(i))
-        print(str(len(news)))
-        """
-        
         edits = []
         edges = get_indices(list(bm.edges))
         vertices = get_indices(list(bm.verts))
-        """
-        for new in news:
-            bm.edges.ensure_lookup_table()
-            bm.verts.ensure_lookup_table()
-            new = json.loads(new)
-            for i in range(len(new)):
-                new[i] = vertices[new[i]]
-            try:
-                bm.edges.new(tuple(new))
-            except:
-                logging.error(traceback.format_exc())
-                print(str(new))
-        """
         big = []
         for i in range(len(pairs)):
             pair = pairs[i]
