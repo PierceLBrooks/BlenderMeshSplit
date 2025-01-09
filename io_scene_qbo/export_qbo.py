@@ -256,7 +256,7 @@ def write_qbo(
     scene = context.scene
     frame_current = scene.frame_current
 
-    file.write("MOTION\n")
+    file.write("MOTION animation_0\n")
     file.write("Frames: %d\n" % (frame_end - frame_start + 1))
     file.write("Frame Time: %.6f\n" % (1.0 / (scene.render.fps / scene.render.fps_base)))
 
@@ -296,16 +296,19 @@ def write_qbo(
         file.write("\n")
 
     file.write("\n\n")
-    bpy.ops.wm.obj_export(filepath=filepath+".obj", global_scale=global_scale)
-    wav = open(filepath+".obj", "r", encoding="utf8", newline="\n")
+    try:
+        bpy.ops.wm.obj_export(filepath=filepath + ".obj", global_scale=global_scale)
+    except:
+        bpy.ops.export_scene.obj(filepath=filepath + ".obj", global_scale=global_scale)
+    wav = open(filepath + ".obj", "r", encoding="utf8", newline="\n")
     lines = wav.readlines()
     wav.close()
     for line in lines:
-        file.write(line.strip()+"\n")
-    for wav in bpy.data.objects:
-        if wav.parent == obj and wav.type == "MESH":
-            write_skin(wav, file, bone_weight_limit)
-    os.remove(filepath+".obj")
+        file.write(line.strip() + "\n")
+        for wav in bpy.data.objects:
+            if wav.parent == obj and wav.type == "MESH" and line.strip() == "o " + wav.name:
+                write_skin(wav, file, bone_weight_limit)
+    os.remove(filepath + ".obj")
 
     file.close()
 
