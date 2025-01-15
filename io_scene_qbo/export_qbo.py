@@ -110,7 +110,7 @@ def write_qbo(
 
     node_locations = {}
 
-    file.write("HIERARCHY %s\n" % arm.name)
+    file.write("HIERARCHY %s\n" % obj.name)
 
     def write_recursive_nodes(bone_name, indent):
         my_children = children[bone_name]
