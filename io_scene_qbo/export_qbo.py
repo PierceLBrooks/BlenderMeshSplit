@@ -119,6 +119,7 @@ def write_qbo(
 
         bone = arm.bones[bone_name]
         pose_bone = obj.pose.bones[bone_name]
+        rot = bone.matrix_local.to_quaternion()
         loc = bone.head_local
         node_locations[bone_name] = loc
 
@@ -133,6 +134,7 @@ def write_qbo(
 
         file.write("%s{\n" % indent_str)
         file.write("%s\tOFFSET %.6f %.6f %.6f\n" % (indent_str, *(loc * global_scale)))
+        file.write("%s\tORIENT %.6f %.6f %.6f %.6f\n" % (indent_str, rot.x, rot.y, rot.z, rot.w))
         if (bone.use_connect or root_transform_only) and bone.parent:
             file.write("%s\tCHANNELS 4 Xrotation Yrotation Zrotation Wrotation\n" % indent_str)
         else:
@@ -153,6 +155,7 @@ def write_qbo(
             file.write("%s\t{\n" % indent_str)
             loc = bone.tail_local - node_locations[bone_name]
             file.write("%s\t\tOFFSET %.6f %.6f %.6f\n" % (indent_str, *(loc * global_scale)))
+            file.write("%s\t\tORIENT %.6f %.6f %.6f %.6f\n" % (indent_str, rot.x, rot.y, rot.z, rot.w))
             file.write("%s\t}\n" % indent_str)
 
         file.write("%s}\n" % indent_str)
@@ -175,6 +178,7 @@ def write_qbo(
         file.write("ROOT %s\n" % key)
         file.write("{\n")
         file.write("\tOFFSET 0.0 0.0 0.0\n")
+        file.write("\tORIENT 0.0 0.0 0.0 0.0\n")
         file.write("\tCHANNELS 0\n")  # Xposition Yposition Zposition Xrotation Yrotation Zrotation Wrotation
         indent = 1
 
