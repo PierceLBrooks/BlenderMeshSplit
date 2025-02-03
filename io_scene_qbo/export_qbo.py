@@ -119,7 +119,7 @@ def write_qbo(
 
         bone = arm.bones[bone_name]
         pose_bone = obj.pose.bones[bone_name]
-        rot = bone.matrix_local.to_quaternion()
+        rot = bone.matrix.to_quaternion()
         loc = bone.head_local
         node_locations[bone_name] = loc
 
