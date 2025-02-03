@@ -273,14 +273,15 @@ def write_qbo(
         for dbone in bones_decorated:
             trans = Matrix.Translation(dbone.rest_bone.head_local)
             itrans = Matrix.Translation(-dbone.rest_bone.head_local)
-            rot = dbone.pose_mat.to_quaternion()
 
             if dbone.parent:
                 mat_final = dbone.parent.rest_arm_mat @ dbone.parent.pose_imat @ dbone.pose_mat @ dbone.rest_arm_imat
+                rot = mat_final.to_quaternion()
                 mat_final = itrans @ mat_final @ trans
                 loc = mat_final.to_translation() + (dbone.rest_bone.head_local - dbone.parent.rest_bone.head_local)
             else:
                 mat_final = dbone.pose_mat @ dbone.rest_arm_imat
+                rot = mat_final.to_quaternion()
                 mat_final = itrans @ mat_final @ trans
                 loc = mat_final.to_translation() + dbone.rest_bone.head
 
