@@ -276,14 +276,14 @@ def write_qbo(
 
             if dbone.parent:
                 mat_final = dbone.parent.rest_arm_mat @ dbone.parent.pose_imat @ dbone.pose_mat @ dbone.rest_arm_imat
+                rot = mat_final.to_quaternion()
                 mat_final = itrans @ mat_final @ trans
                 loc = mat_final.to_translation() + (dbone.rest_bone.head_local - dbone.parent.rest_bone.head_local)
             else:
                 mat_final = dbone.pose_mat @ dbone.rest_arm_imat
+                rot = mat_final.to_quaternion()
                 mat_final = itrans @ mat_final @ trans
                 loc = mat_final.to_translation() + dbone.rest_bone.head
-
-            rot = mat_final.to_quaternion()
 
             if not dbone.skip_position:
                 file.write("%.6f %.6f %.6f " % (loc * global_scale)[:])
