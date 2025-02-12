@@ -33,12 +33,9 @@ from bpy.props import (
 from bpy_extras.io_utils import (
     ImportHelper,
     ExportHelper,
-    orientation_helper,
-    axis_conversion,
 )
 
 
-@orientation_helper(axis_forward='-Z', axis_up='Y')
 class ImportQBO(bpy.types.Operator, ImportHelper):
     """Load a QBO file"""
     bl_idname = "import_scene.qbo"
@@ -48,13 +45,6 @@ class ImportQBO(bpy.types.Operator, ImportHelper):
     filename_ext = ".qbo"
     filter_glob: StringProperty(default="*.qbo", options={'HIDDEN'})
 
-    global_scale: FloatProperty(
-        name="Scale",
-        description="Scale the QBO by this value",
-        min=0.0001, max=1000000.0,
-        soft_min=0.001, soft_max=100.0,
-        default=1.0,
-    )
     frame_start: IntProperty(
         name="Start Frame",
         description="Starting frame for the animation",
@@ -93,12 +83,6 @@ class ImportQBO(bpy.types.Operator, ImportHelper):
                 "filter_glob",
             )
         )
-        global_matrix = axis_conversion(
-            from_forward=self.axis_forward,
-            from_up=self.axis_up,
-        ).to_4x4()
-
-        keywords["global_matrix"] = global_matrix
 
         from . import import_qbo
         return import_qbo.load(context, report=self.report, **keywords)
@@ -153,9 +137,9 @@ class QBO_PT_import_transform(bpy.types.Panel):
         sfile = context.space_data
         operator = sfile.active_operator
 
-        layout.prop(operator, "global_scale")
-        layout.prop(operator, "axis_forward")
-        layout.prop(operator, "axis_up")
+        #layout.prop(operator, "global_scale")
+        #layout.prop(operator, "axis_forward")
+        #layout.prop(operator, "axis_up")
 
 
 class QBO_PT_import_animation(bpy.types.Panel):
@@ -187,7 +171,6 @@ class QBO_PT_import_animation(bpy.types.Panel):
         layout.prop(operator, "update_scene_duration")
 
 
-@orientation_helper(axis_forward='-Z', axis_up='Y')
 class ExportQBO(bpy.types.Operator, ExportHelper):
     """Save a QBO file from an armature"""
     bl_idname = "export_scene.qbo"
@@ -199,13 +182,6 @@ class ExportQBO(bpy.types.Operator, ExportHelper):
         options={'HIDDEN'},
     )
 
-    global_scale: FloatProperty(
-        name="Scale",
-        description="Scale the QBO by this value",
-        min=0.0001, max=1000000.0,
-        soft_min=0.001, soft_max=100.0,
-        default=1.0,
-    )
     frame_start: IntProperty(
         name="Start Frame",
         description="Starting frame to export",
@@ -283,9 +259,9 @@ class QBO_PT_export_transform(bpy.types.Panel):
         sfile = context.space_data
         operator = sfile.active_operator
 
-        layout.prop(operator, "global_scale")
-        layout.prop(operator, "axis_forward")
-        layout.prop(operator, "axis_up")
+        #layout.prop(operator, "global_scale")
+        #layout.prop(operator, "axis_forward")
+        #layout.prop(operator, "axis_up")
         layout.prop(operator, "root_transform_only")
         layout.prop(operator, "sort_child_names")
         layout.prop(operator, "bone_weight_limit")

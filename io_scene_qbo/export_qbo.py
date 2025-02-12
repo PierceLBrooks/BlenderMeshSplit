@@ -5,7 +5,6 @@
 import bpy
 import functools
 import os
-from bpy_extras.io_utils import axis_conversion
 
 
 def get_comparison(left, right):
@@ -77,12 +76,9 @@ def write_qbo(
         filepath,
         frame_start,
         frame_end,
-        global_scale=1.0,
         root_transform_only=False,
         sort_child_names=True,
         bone_weight_limit=4,
-        axis_forward="-Z",
-        axis_up="Y",
 ):
 
     from mathutils import Matrix, Quaternion
@@ -115,11 +111,6 @@ def write_qbo(
 
     file.write("HIERARCHY %s\n" % obj.name)
 
-    global_matrix = axis_conversion(
-        from_forward=axis_forward,
-        from_up=axis_up,
-    ).to_4x4().inverted()
-
     def write_recursive_nodes(bone_name, indent):
         my_children = children[bone_name]
 
@@ -128,7 +119,7 @@ def write_qbo(
         bone = arm.bones[bone_name]
         pose_bone = obj.pose.bones[bone_name]
         rot = bone.matrix.to_quaternion()
-        loc = (global_matrix @ bone.head_local) * global_scale
+        loc = bone.head_local
         node_locations[bone_name] = loc
         # make relative if we can
         if bone.parent:
@@ -165,7 +156,7 @@ def write_qbo(
             # Write the bone end.
             file.write("%s\tEnd Site\n" % indent_str)
             file.write("%s\t{\n" % indent_str)
-            loc = ((global_matrix @ bone.tail_local) * global_scale) - node_locations[bone_name]
+            loc = bone.tail_local - node_locations[bone_name]
             loc = list(loc)
             loc = loc[:min(3, len(loc))]
             while len(loc) < 3:
@@ -301,7 +292,7 @@ def write_qbo(
                 loc = mat_final.to_translation() + dbone.rest_bone.head
 
             rot = mat_final.to_quaternion()
-            loc = list((global_matrix @ loc) * global_scale)
+            loc = list(loc)
             loc = loc[:min(3, len(loc))]
             while len(loc) < 3:
                 loc.append(0.0)
@@ -322,9 +313,9 @@ def write_qbo(
 
     file.write("\n\n")
     try:
-        bpy.ops.wm.obj_export(filepath=filepath + ".obj", global_scale=global_scale, forward_axis=axis_forward.replace("-", "NEGATIVE_"), up_axis=axis_up.replace("-", "NEGATIVE_"))
+        bpy.ops.wm.obj_export(filepath=filepath + ".obj")
     except:
-        bpy.ops.export_scene.obj(filepath=filepath + ".obj", global_scale=global_scale, forward_axis=axis_forward.replace("-", "NEGATIVE_"), up_axis=axis_up.replace("-", "NEGATIVE_"))
+        bpy.ops.export_scene.obj(filepath=filepath + ".obj")
     wav = open(filepath + ".obj", "r", encoding="utf8", newline="\n")
     lines = wav.readlines()
     wav.close()
@@ -349,23 +340,17 @@ def save(
         context, filepath="",
         frame_start=-1,
         frame_end=-1,
-        global_scale=1.0,
         root_transform_only=False,
         sort_child_names=True,
         bone_weight_limit=4,
-        axis_forward="-Z",
-        axis_up="Y",
 ):
     write_qbo(
         context, filepath,
         frame_start=frame_start,
         frame_end=frame_end,
-        global_scale=global_scale,
         root_transform_only=root_transform_only,
         sort_child_names=sort_child_names,
         bone_weight_limit=bone_weight_limit,
-        axis_forward=axis_forward,
-        axis_up=axis_up,
     )
 
     return {'FINISHED'}

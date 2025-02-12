@@ -427,7 +427,6 @@ def qbo_node_dict2armature(
         qbo_frame_time,
         frame_start=1,
         IMPORT_LOOP=False,
-        global_matrix=None,
         use_fps_scale=False,
 ):
 
@@ -635,10 +634,6 @@ def qbo_node_dict2armature(
         for bez in cu.keyframe_points:
             bez.interpolation = 'LINEAR'
 
-    # finally apply matrix
-    arm_ob.matrix_world = global_matrix
-    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
-
     return arm_ob
 
 
@@ -649,9 +644,6 @@ def load(
         global_scale=1.0,
         use_cyclic=False,
         frame_start=1,
-        global_matrix=None,
-        axis_forward="-Z",
-        axis_up="Y",
         use_fps_scale=False,
         update_scene_fps=False,
         update_scene_duration=False,
@@ -706,9 +698,9 @@ def load(
     qbo_name = bpy.path.display_name_from_filepath(filepath)
 
     try:
-        bpy.ops.wm.obj_import(filepath=filepath + ".obj", global_scale=global_scale, forward_axis=axis_forward.replace("-", "NEGATIVE_"), up_axis=axis_up.replace("-", "NEGATIVE_"))
+        bpy.ops.wm.obj_import(filepath=filepath + ".obj", global_scale=global_scale)
     except:
-        bpy.ops.import_scene.obj(filepath=filepath + ".obj", global_scale=global_scale, forward_axis=axis_forward.replace("-", "NEGATIVE_"), up_axis=axis_up.replace("-", "NEGATIVE_"))
+        bpy.ops.import_scene.obj(filepath=filepath + ".obj", global_scale=global_scale)
     try:
         os.remove(filepath + ".obj")
     except:
@@ -748,7 +740,6 @@ def load(
         context, qbo_name, qbo_nodes, qbo_frame_time,
         frame_start=frame_start,
         IMPORT_LOOP=use_cyclic,
-        global_matrix=global_matrix,
         use_fps_scale=use_fps_scale,
     )
 
