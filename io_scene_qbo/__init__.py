@@ -38,7 +38,7 @@ from bpy_extras.io_utils import (
 )
 
 
-'''@orientation_helper(axis_forward='-Z', axis_up='Y')
+@orientation_helper(axis_forward='-Z', axis_up='Y')
 class ImportQBO(bpy.types.Operator, ImportHelper):
     """Load a QBO file"""
     bl_idname = "import_scene.qbo"
@@ -48,15 +48,6 @@ class ImportQBO(bpy.types.Operator, ImportHelper):
     filename_ext = ".qbo"
     filter_glob: StringProperty(default="*.qbo", options={'HIDDEN'})
 
-    target: EnumProperty(
-        items=(
-            ('ARMATURE', "Armature", ""),
-            ('OBJECT', "Object", ""),
-        ),
-        name="Target",
-        description="Import target type",
-        default='ARMATURE',
-    )
     global_scale: FloatProperty(
         name="Scale",
         description="Scale the QBO by this value",
@@ -99,8 +90,6 @@ class ImportQBO(bpy.types.Operator, ImportHelper):
     def execute(self, context):
         keywords = self.as_keywords(
             ignore=(
-                "axis_forward",
-                "axis_up",
                 "filter_glob",
             )
         )
@@ -116,7 +105,6 @@ class ImportQBO(bpy.types.Operator, ImportHelper):
 
     def draw(self, context):
         pass
-'''
 
 
 class QBO_PT_import_main(bpy.types.Panel):
@@ -199,6 +187,7 @@ class QBO_PT_import_animation(bpy.types.Panel):
         layout.prop(operator, "update_scene_duration")
 
 
+@orientation_helper(axis_forward='-Z', axis_up='Y')
 class ExportQBO(bpy.types.Operator, ExportHelper):
     """Save a QBO file from an armature"""
     bl_idname = "export_scene.qbo"
@@ -261,8 +250,6 @@ class ExportQBO(bpy.types.Operator, ExportHelper):
 
         keywords = self.as_keywords(
             ignore=(
-                "axis_forward",
-                "axis_up",
                 "check_existing",
                 "filter_glob",
             )
@@ -297,6 +284,8 @@ class QBO_PT_export_transform(bpy.types.Panel):
         operator = sfile.active_operator
 
         layout.prop(operator, "global_scale")
+        layout.prop(operator, "axis_forward")
+        layout.prop(operator, "axis_up")
         layout.prop(operator, "root_transform_only")
         layout.prop(operator, "sort_child_names")
         layout.prop(operator, "bone_weight_limit")
@@ -329,7 +318,7 @@ class QBO_PT_export_animation(bpy.types.Panel):
 
 
 def menu_func_import(self, context):
-    #self.layout.operator(ImportQBO.bl_idname, text="Qbo (.qbo)")
+    self.layout.operator(ImportQBO.bl_idname, text="Qbo (.qbo)")
     pass
 
 
@@ -338,10 +327,10 @@ def menu_func_export(self, context):
 
 
 classes = (
-#    ImportQBO,
-#    QBO_PT_import_main,
-#    QBO_PT_import_transform,
-#    QBO_PT_import_animation,
+    ImportQBO,
+    QBO_PT_import_main,
+    QBO_PT_import_transform,
+    QBO_PT_import_animation,
     ExportQBO,
     QBO_PT_export_transform,
     QBO_PT_export_animation,
@@ -352,7 +341,7 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    #bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
+    bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
 
 
@@ -360,7 +349,7 @@ def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
 
-    #bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
 
 

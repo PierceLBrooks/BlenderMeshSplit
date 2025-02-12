@@ -5,6 +5,7 @@
 import bpy
 import functools
 import os
+from bpy_extras.io_utils import axis_conversion
 
 
 def get_comparison(left, right):
@@ -80,6 +81,8 @@ def write_qbo(
         root_transform_only=False,
         sort_child_names=True,
         bone_weight_limit=4,
+        axis_forward="-Z",
+        axis_up="Y",
 ):
 
     from mathutils import Matrix, Quaternion
@@ -112,6 +115,11 @@ def write_qbo(
 
     file.write("HIERARCHY %s\n" % obj.name)
 
+    global_matrix = axis_conversion(
+        from_forward=axis_forward,
+        from_up=axis_up,
+    ).to_4x4().inverted()
+
     def write_recursive_nodes(bone_name, indent):
         my_children = children[bone_name]
 
@@ -120,12 +128,16 @@ def write_qbo(
         bone = arm.bones[bone_name]
         pose_bone = obj.pose.bones[bone_name]
         rot = bone.matrix.to_quaternion()
-        loc = bone.head_local
+        loc = (global_matrix @ bone.head_local) * global_scale
         node_locations[bone_name] = loc
-
         # make relative if we can
         if bone.parent:
             loc = loc - node_locations[bone.parent.name]
+        loc = list(loc)
+        loc = loc[:min(3, len(loc))]
+        while len(loc) < 3:
+            loc.append(0.0)
+        loc = tuple(loc)
 
         if indent:
             file.write("%sJOINT %s\n" % (indent_str, bone_name))
@@ -133,7 +145,7 @@ def write_qbo(
             file.write("%sROOT %s\n" % (indent_str, bone_name))
 
         file.write("%s{\n" % indent_str)
-        file.write("%s\tOFFSET %.6f %.6f %.6f\n" % (indent_str, *(loc * global_scale)))
+        file.write("%s\tOFFSET %.6f %.6f %.6f\n" % (indent_str, *loc))
         file.write("%s\tORIENT %.6f %.6f %.6f %.6f\n" % (indent_str, rot.x, rot.y, rot.z, rot.w))
         if (bone.use_connect or root_transform_only) and bone.parent:
             file.write("%s\tCHANNELS 4 Xrotation Yrotation Zrotation Wrotation\n" % indent_str)
@@ -153,8 +165,13 @@ def write_qbo(
             # Write the bone end.
             file.write("%s\tEnd Site\n" % indent_str)
             file.write("%s\t{\n" % indent_str)
-            loc = bone.tail_local - node_locations[bone_name]
-            file.write("%s\t\tOFFSET %.6f %.6f %.6f\n" % (indent_str, *(loc * global_scale)))
+            loc = ((global_matrix @ bone.tail_local) * global_scale) - node_locations[bone_name]
+            loc = list(loc)
+            loc = loc[:min(3, len(loc))]
+            while len(loc) < 3:
+                loc.append(0.0)
+            loc = tuple(loc)
+            file.write("%s\t\tOFFSET %.6f %.6f %.6f\n" % (indent_str, *loc))
             file.write("%s\t\tORIENT %.6f %.6f %.6f %.6f\n" % (indent_str, rot.x, rot.y, rot.z, rot.w))
             file.write("%s\t}\n" % indent_str)
 
@@ -178,7 +195,7 @@ def write_qbo(
         file.write("ROOT %s\n" % key)
         file.write("{\n")
         file.write("\tOFFSET 0.0 0.0 0.0\n")
-        file.write("\tORIENT 0.0 0.0 0.0 0.0\n")
+        file.write("\tORIENT 0.0 0.0 0.0 1.0\n")
         file.write("\tCHANNELS 0\n")  # Xposition Yposition Zposition Xrotation Yrotation Zrotation Wrotation
         indent = 1
 
@@ -284,9 +301,13 @@ def write_qbo(
                 loc = mat_final.to_translation() + dbone.rest_bone.head
 
             rot = mat_final.to_quaternion()
+            loc = list((global_matrix @ loc) * global_scale)
+            loc = loc[:min(3, len(loc))]
+            while len(loc) < 3:
+                loc.append(0.0)
 
             if not dbone.skip_position:
-                file.write("%.6f %.6f %.6f " % (loc * global_scale)[:])
+                file.write("%.6f %.6f %.6f " % (loc[0], loc[1], loc[2]))
 
             file.write(
                 "%.6f %.6f %.6f %.6f " % (
@@ -301,9 +322,9 @@ def write_qbo(
 
     file.write("\n\n")
     try:
-        bpy.ops.wm.obj_export(filepath=filepath + ".obj", global_scale=global_scale)
+        bpy.ops.wm.obj_export(filepath=filepath + ".obj", global_scale=global_scale, forward_axis=axis_forward.replace("-", "NEGATIVE_"), up_axis=axis_up.replace("-", "NEGATIVE_"))
     except:
-        bpy.ops.export_scene.obj(filepath=filepath + ".obj", global_scale=global_scale)
+        bpy.ops.export_scene.obj(filepath=filepath + ".obj", global_scale=global_scale, forward_axis=axis_forward.replace("-", "NEGATIVE_"), up_axis=axis_up.replace("-", "NEGATIVE_"))
     wav = open(filepath + ".obj", "r", encoding="utf8", newline="\n")
     lines = wav.readlines()
     wav.close()
@@ -312,7 +333,10 @@ def write_qbo(
         for wav in bpy.data.objects:
             if wav.parent == obj and wav.type == "MESH" and line.strip() == "o " + wav.name:
                 write_skin(wav, file, bone_weight_limit)
-    os.remove(filepath + ".obj")
+    try:
+        os.remove(filepath + ".obj")
+    except:
+        pass
 
     file.close()
 
@@ -329,6 +353,8 @@ def save(
         root_transform_only=False,
         sort_child_names=True,
         bone_weight_limit=4,
+        axis_forward="-Z",
+        axis_up="Y",
 ):
     write_qbo(
         context, filepath,
@@ -338,6 +364,8 @@ def save(
         root_transform_only=root_transform_only,
         sort_child_names=sort_child_names,
         bone_weight_limit=bone_weight_limit,
+        axis_forward=axis_forward,
+        axis_up=axis_up,
     )
 
     return {'FINISHED'}
