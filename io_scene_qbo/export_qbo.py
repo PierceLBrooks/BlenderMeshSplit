@@ -109,6 +109,9 @@ def write_qbo(
 
     node_locations = {}
 
+    arm.transform(obj.matrix_world)
+    #obj.matrix_world = Matrix()
+
     file.write("HIERARCHY %s\n" % obj.name)
 
     def write_recursive_nodes(bone_name, indent):

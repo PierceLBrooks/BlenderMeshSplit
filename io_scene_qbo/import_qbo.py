@@ -91,7 +91,7 @@ def get_distance(left, right):
     return distance**0.5
 
 
-def read_qbo(logger, context, file_path, global_scale=1.0):
+def read_qbo(logger, context, file_path):
     # File loading stuff
     # Open the file for importing
     file = open(file_path, 'r')
@@ -144,7 +144,7 @@ def read_qbo(logger, context, file_path, global_scale=1.0):
             logger.debug('%snode: %s, parent: %s' % (len(qbo_nodes_serial) * '  ', name,  qbo_nodes_serial[-1]))
 
             lineIdx += 2  # Increment to the next line (Offset)
-            rest_head_local = global_scale * Vector((
+            rest_head_local = Vector((
                 float(file_lines[lineIdx][1]),
                 float(file_lines[lineIdx][2]),
                 float(file_lines[lineIdx][3]),
@@ -202,7 +202,7 @@ def read_qbo(logger, context, file_path, global_scale=1.0):
         if file_lines[lineIdx][0].lower() == 'end' and file_lines[lineIdx][1].lower() == 'site':
             # Increment to the next line (Offset)
             lineIdx += 2
-            rest_tail = global_scale * Vector((
+            rest_tail = Vector((
                 float(file_lines[lineIdx][1]),
                 float(file_lines[lineIdx][2]),
                 float(file_lines[lineIdx][3]),
@@ -302,13 +302,13 @@ def read_qbo(logger, context, file_path, global_scale=1.0):
             channels = qbo_node.channels
             anim_data = qbo_node.anim_data
             if channels[0] != -1:
-                lx = global_scale * float(line[channels[0]])
+                lx = float(line[channels[0]])
 
             if channels[1] != -1:
-                ly = global_scale * float(line[channels[1]])
+                ly = float(line[channels[1]])
 
             if channels[2] != -1:
-                lz = global_scale * float(line[channels[2]])
+                lz = float(line[channels[2]])
 
             if channels[3] != -1 or channels[4] != -1 or channels[5] != -1 or channels[6] != -1:
 
@@ -355,10 +355,10 @@ def read_qbo(logger, context, file_path, global_scale=1.0):
                 qbo_node.rest_tail_local = rest_tail_local * (1.0 / len(qbo_node.children))
 
         # Make sure tail isn't the same location as the head.
-        if (qbo_node.rest_tail_local - qbo_node.rest_head_local).length <= EPSILON * global_scale:
+        if (qbo_node.rest_tail_local - qbo_node.rest_head_local).length <= EPSILON:
             print("\tzero length node found:", qbo_node.name)
-            qbo_node.rest_tail_local.y = qbo_node.rest_tail_local.y + global_scale / 10
-            qbo_node.rest_tail_world.y = qbo_node.rest_tail_world.y + global_scale / 10
+            qbo_node.rest_tail_local.y = qbo_node.rest_tail_local.y + (1.0 / 10.0)
+            qbo_node.rest_tail_world.y = qbo_node.rest_tail_world.y + (1.0 / 10.0)
 
     # Reopen the file for reimporting
     file.close()
@@ -641,7 +641,6 @@ def load(
         context,
         filepath,
         *,
-        global_scale=1.0,
         use_cyclic=False,
         frame_start=1,
         use_fps_scale=False,
@@ -655,13 +654,12 @@ def load(
 
     log_path = bpy.path.abspath(filepath + ".log")
     log_handler = logging.FileHandler(log_path)
-    logger.addHandler(log_handler)
+    #logger.addHandler(log_handler)
     logger.setLevel(logging.DEBUG)
     logger.debug(now.strftime("%d-%m-%Y@%H:%M:%S"))
     logger.debug("\tparsing qbo %r..." % filepath)
     qbo_nodes, qbo_frame_time, qbo_frame_count, qbo_vertices, qbo_weights = read_qbo(
         logger, context, filepath,
-        global_scale=global_scale,
     )
     #open(filepath + ".json", "w").write(json.dumps(qbo_weights))
 
@@ -698,9 +696,9 @@ def load(
     qbo_name = bpy.path.display_name_from_filepath(filepath)
 
     try:
-        bpy.ops.wm.obj_import(filepath=filepath + ".obj", global_scale=global_scale)
+        bpy.ops.wm.obj_import(filepath=filepath + ".obj")
     except:
-        bpy.ops.import_scene.obj(filepath=filepath + ".obj", global_scale=global_scale)
+        bpy.ops.import_scene.obj(filepath=filepath + ".obj")
     try:
         os.remove(filepath + ".obj")
     except:
